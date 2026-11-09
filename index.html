@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Animal Explorer - ภารกิจนักสำรวจโลกของสัตว์</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Prompt & Kanit -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        jungle: { light: '#a7f3d0', DEFAULT: '#10b981', dark: '#047857' },
+                        ocean: { light: '#bae6fd', DEFAULT: '#0284c7', dark: '#0369a1' },
+                        swamp: { light: '#fef08a', DEFAULT: '#ca8a04', dark: '#854d0e' },
+                        accent: '#ffb703',
+                        coral: '#fb8500'
+                    },
+                    fontFamily: {
+                        prompt: ['Prompt', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Glassmorphism effects */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .glass-panel-dark {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        /* Animated background elements */
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-12px) rotate(2deg); }
+        }
+
+        .pulse-glow {
+            animation: pulseGlow 2s infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 183, 3, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(255, 183, 3, 1); }
+        }
+
+        /* Animal Interactive Marker Pin Animation */
+        .animal-marker {
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            touch-action: manipulation;
+        }
+        .animal-marker:active, .animal-marker:hover {
+            transform: scale(1.15) translateY(-6px);
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.4));
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(241, 241, 241, 0.5);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #10b981;
+            border-radius: 10px;
+        }
+
+        .confetti-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Custom SVG animations */
+        @keyframes ripple {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.0); opacity: 0; }
+        }
+        .ripple-effect {
+            animation: ripple 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-800 min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-white">
+
+    <!-- Canvas for Confetti & Particles Effects -->
+    <canvas id="fxCanvas" class="confetti-canvas"></canvas>
+
+    <!-- Header Navigation Bar -->
+    <header id="mainHeader" class="w-full bg-slate-900/90 backdrop-blur-md border-b border-white/10 text-white px-3 sm:px-4 py-2.5 sticky top-0 z-40 transition-all duration-300">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2 sm:gap-3 cursor-pointer" onclick="game.showScreen('mainMenu')">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-amber-400 to-emerald-500 flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-lg shrink-0">
+                    <i class="fa-solid fa-compass"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-base sm:text-xl tracking-wide bg-gradient-to-r from-amber-300 via-emerald-400 to-teal-200 bg-clip-text text-transparent leading-tight">
+                        Animal Explorer
+                    </h1>
+                    <p class="text-[10px] sm:text-xs text-slate-400">ภารกิจนักสำรวจโลกของสัตว์ ป.6</p>
+                </div>
+            </div>
+
+            <!-- Global Score & Status Bar -->
+            <div id="globalStats" class="flex items-center gap-2 sm:gap-6 bg-slate-800/90 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-slate-700/60 shadow-inner">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-trophy text-amber-400 text-xs sm:text-lg"></i>
+                    <span class="text-[11px] sm:text-sm text-slate-300 font-medium hidden sm:inline">คะแนน:</span>
+                    <span id="totalScoreText" class="text-amber-400 font-extrabold text-sm sm:text-lg">0</span>
+                </div>
+                <div class="h-3 sm:h-4 w-px bg-slate-700"></div>
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-star text-emerald-400 text-xs sm:text-lg"></i>
+                    <span class="text-[11px] sm:text-sm text-slate-300 font-medium hidden sm:inline">ด่านที่:</span>
+                    <span id="currentLevelHeader" class="text-emerald-400 font-extrabold text-sm sm:text-lg">1/3</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Dynamic Container -->
+    <main id="appContainer" class="flex-grow flex items-center justify-center p-2 sm:p-6 relative w-full">
+
+        <!-- ================= Screen 1: Main Menu ================= -->
+        <section id="screen-mainMenu" class="w-full max-w-4xl glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-10 text-center relative overflow-hidden transition-all duration-500 my-auto">
+            <div class="absolute -top-24 -left-24 w-60 h-60 bg-emerald-400/20 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-24 -right-24 w-60 h-60 bg-amber-400/20 rounded-full blur-3xl"></div>
+
+            <!-- Hero Graphic Header -->
+            <div class="relative z-10 flex flex-col items-center">
+                <div class="floating mb-3 sm:mb-4">
+                    <div class="w-24 h-24 sm:w-36 sm:h-36 rounded-full bg-gradient-to-tr from-emerald-400 via-teal-500 to-cyan-500 p-1.5 shadow-2xl flex items-center justify-center">
+                        <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center overflow-hidden relative">
+                            <!-- 3D Explorer Mascot SVG -->
+                            <svg class="w-20 h-20 sm:w-30 sm:h-30" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="100" cy="100" r="90" fill="#0F172A"/>
+                                <path d="M50 140 C 50 90, 150 90, 150 140 Z" fill="#10B981"/>
+                                <!-- Explorer Hat -->
+                                <ellipse cx="100" cy="65" rx="55" ry="12" fill="#D97706"/>
+                                <path d="M65 65 C 65 35, 135 35, 135 65 Z" fill="#B45309"/>
+                                <rect x="65" y="58" width="70" height="7" fill="#451A03"/>
+                                <!-- Face -->
+                                <circle cx="100" cy="95" r="35" fill="#FDE047"/>
+                                <!-- Eyes -->
+                                <circle cx="88" cy="90" r="5" fill="#1E293B"/>
+                                <circle cx="112" cy="90" r="5" fill="#1E293B"/>
+                                <!-- Cheeks -->
+                                <circle cx="80" cy="98" r="4" fill="#F87171" opacity="0.6"/>
+                                <circle cx="120" cy="98" r="4" fill="#F87171" opacity="0.6"/>
+                                <!-- Smile -->
+                                <path d="M 90 108 Q 100 118 110 108" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
+                                <!-- Binoculars -->
+                                <rect x="80" y="120" width="18" height="22" rx="4" fill="#334155"/>
+                                <rect x="102" y="120" width="18" height="22" rx="4" fill="#334155"/>
+                                <rect x="94" y="126" width="12" height="6" fill="#64748B"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 text-[11px] sm:text-sm font-semibold tracking-wide mb-2 sm:mb-3">
+                    <i class="fa-solid fa-graduation-cap mr-1"></i> กลุ่มสาระการเรียนรู้วิทยาศาสตร์ (ป.6)
+                </span>
+                
+                <h1 class="text-2xl sm:text-5xl font-black text-slate-800 tracking-tight leading-tight mb-1 sm:mb-2">
+                    ANIMAL EXPLORER
+                </h1>
+                <h2 class="text-lg sm:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3 sm:mb-4">
+                    ภารกิจนักสำรวจโลกของสัตว์
+                </h2>
+                <p class="text-slate-600 max-w-xl text-xs sm:text-base leading-relaxed mb-6">
+                    ร่วมออกผจญภัยใน 3 ด่านธรรมชาติสุดตื่นตาตื่นใจ เพื่อเรียนรู้และจำแนกสัตว์ประเภทมีกระดูกสันหลังและไม่มีกระดูกสันหลัง พร้อมพิชิตแบบทดสอบ 20 ข้อ!
+                </p>
+
+                <!-- Action Buttons Menu Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-2xl">
+                    <button onclick="game.startAdventure()" class="group relative px-5 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-base sm:text-lg shadow-lg hover:shadow-emerald-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 border border-emerald-400">
+                        <i class="fa-solid fa-play text-lg group-hover:animate-bounce"></i>
+                        <span>เริ่มภารกิจสำรวจ</span>
+                    </button>
+
+                    <button onclick="game.showScreen('instructions')" class="px-5 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-white text-slate-700 font-bold text-base sm:text-lg shadow-md hover:bg-slate-50 border border-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book-open text-amber-500"></i>
+                        <span>วิธีการเล่น</span>
+                    </button>
+
+                    <button onclick="game.showScreen('knowledge')" class="px-5 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-white text-slate-700 font-bold text-base sm:text-lg shadow-md hover:bg-slate-50 border border-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-lightbulb text-teal-500"></i>
+                        <span>สาระน่ารู้</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Screen 2: Level Select / Map ================= -->
+        <section id="screen-levelMap" class="w-full max-w-5xl glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-8 hidden my-auto">
+            <div class="flex flex-row justify-between items-center mb-4 sm:mb-6 gap-2">
+                <div>
+                    <h2 class="text-xl sm:text-3xl font-extrabold text-slate-800 flex items-center gap-2 sm:gap-3">
+                        <i class="fa-solid fa-map-location-dot text-emerald-600"></i> แผนที่ภารกิจ
+                    </h2>
+                    <p class="text-slate-600 text-xs sm:text-sm">เลือกพื้นที่ธรรมชาติเพื่อสำรวจสัตว์</p>
+                </div>
+                <button onclick="game.showScreen('mainMenu')" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-xs sm:text-sm transition-all flex items-center gap-1 sm:gap-2 shrink-0">
+                    <i class="fa-solid fa-arrow-left"></i> กลับ
+                </button>
+            </div>
+
+            <!-- 3 Stage Map Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
+                <!-- Stage 1 Card -->
+                <div id="stage-card-1" onclick="game.loadStage(1)" class="stage-card relative bg-gradient-to-b from-emerald-500 to-teal-700 rounded-2xl p-4 sm:p-5 text-white shadow-xl overflow-hidden group cursor-pointer transition-all active:scale-98">
+                    <div class="absolute -right-6 -bottom-6 opacity-20">
+                        <i class="fa-solid fa-tree text-7xl sm:text-9xl"></i>
+                    </div>
+                    <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] sm:text-xs font-bold mb-2 sm:mb-4">ด่านที่ 1</span>
+                    <h3 class="text-lg sm:text-xl font-black mb-1">ป่ามหัศจรรย์</h3>
+                    <p class="text-xs text-emerald-100 mb-4 sm:mb-6 leading-relaxed">สำรวจพงไพร เรียนรู้เรื่องสุนัข ช้าง ผีเสื้อ และแมลงต่าง ๆ</p>
+                    
+                    <div class="flex items-center justify-between mt-auto border-t border-white/20 pt-3 sm:pt-4">
+                        <div class="text-xs">
+                            <span class="block text-emerald-200 text-[10px] sm:text-xs">ความคืบหน้า</span>
+                            <span id="stage1-progress" class="font-bold">0/6 สัตว์</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); game.loadStage(1)" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white text-emerald-800 font-bold text-xs sm:text-sm shadow hover:bg-emerald-50 transition-all flex items-center gap-1">
+                            เข้าสู่ด่าน <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stage 2 Card -->
+                <div id="stage-card-2" onclick="game.loadStage(2)" class="stage-card relative bg-gradient-to-b from-sky-500 to-blue-700 rounded-2xl p-4 sm:p-5 text-white shadow-xl overflow-hidden group transition-all opacity-80 cursor-not-allowed">
+                    <div class="absolute -right-6 -bottom-6 opacity-20">
+                        <i class="fa-solid fa-water text-7xl sm:text-9xl"></i>
+                    </div>
+                    <div class="flex justify-between items-center mb-2 sm:mb-4">
+                        <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] sm:text-xs font-bold">ด่านที่ 2</span>
+                        <span id="stage2-lock" class="text-amber-300 text-[10px] sm:text-xs font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-lock"></i> ล็อกอยู่
+                        </span>
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-black mb-1">โลกใต้ท้องทะเล</h3>
+                    <p class="text-xs text-sky-100 mb-4 sm:mb-6 leading-relaxed">ดำดิ่งสู่ใต้ทะเลลึก พบกับปลา หมึก ปู และสัตว์ทะเลมากมาย</p>
+                    
+                    <div class="flex items-center justify-between mt-auto border-t border-white/20 pt-3 sm:pt-4">
+                        <div class="text-xs">
+                            <span class="block text-sky-200 text-[10px] sm:text-xs">ความคืบหน้า</span>
+                            <span id="stage2-progress" class="font-bold">0/6 สัตว์</span>
+                        </div>
+                        <button id="stage2-btn" disabled onclick="event.stopPropagation(); game.loadStage(2)" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white/50 text-slate-400 font-bold text-xs sm:text-sm cursor-not-allowed transition-all flex items-center gap-1">
+                            ปลดล็อกด่าน 1 ก่อน
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stage 3 Card -->
+                <div id="stage-card-3" onclick="game.loadStage(3)" class="stage-card relative bg-gradient-to-b from-amber-600 to-yellow-800 rounded-2xl p-4 sm:p-5 text-white shadow-xl overflow-hidden group transition-all opacity-80 cursor-not-allowed">
+                    <div class="absolute -right-6 -bottom-6 opacity-20">
+                        <i class="fa-solid fa-frog text-7xl sm:text-9xl"></i>
+                    </div>
+                    <div class="flex justify-between items-center mb-2 sm:mb-4">
+                        <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] sm:text-xs font-bold">ด่านที่ 3</span>
+                        <span id="stage3-lock" class="text-amber-300 text-[10px] sm:text-xs font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-lock"></i> ล็อกอยู่
+                        </span>
+                    </div>
+                    <h3 class="text-lg sm:text-xl font-black mb-1">ดินแดนแหล่งน้ำ</h3>
+                    <p class="text-xs text-amber-100 mb-4 sm:mb-6 leading-relaxed">สำรวจพื้นที่ชุ่มน้ำ บึงน้ำ กบ เต่า หอยทาก และไส้เดือนดิน</p>
+                    
+                    <div class="flex items-center justify-between mt-auto border-t border-white/20 pt-3 sm:pt-4">
+                        <div class="text-xs">
+                            <span class="block text-amber-200 text-[10px] sm:text-xs">ความคืบหน้า</span>
+                            <span id="stage3-progress" class="font-bold">0/6 สัตว์</span>
+                        </div>
+                        <button id="stage3-btn" disabled onclick="event.stopPropagation(); game.loadStage(3)" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white/50 text-slate-400 font-bold text-xs sm:text-sm cursor-not-allowed transition-all flex items-center gap-1">
+                            ปลดล็อกด่าน 2 ก่อน
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Banner (Appears after all stages are clear) -->
+            <div id="quiz-unlock-banner" class="mt-4 sm:mt-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 hidden">
+                <div class="flex items-center gap-3 text-center sm:text-left">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-award text-amber-200 animate-bounce"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm sm:text-lg">ภารกิจสำรวจครบทั้ง 3 ด่านแล้ว!</h4>
+                        <p class="text-xs text-amber-100">พร้อมทำแบบทดสอบประเมินความรู้ 20 ข้อแล้วหรือยัง?</p>
+                    </div>
+                </div>
+                <button onclick="game.startQuiz()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white text-orange-600 font-black shadow hover:bg-amber-50 active:scale-95 transition-all text-xs sm:text-sm whitespace-nowrap">
+                    ทำแบบทดสอบ 20 ข้อ <i class="fa-solid fa-circle-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= Screen 3: Gameplay Exploration Canvas ================= -->
+        <section id="screen-gameplay" class="w-full max-w-5xl h-[70vh] sm:h-[80vh] min-h-[350px] glass-panel rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 flex flex-col relative overflow-hidden hidden my-auto">
+            <!-- Stage Top Controller Overlay -->
+            <div class="z-20 flex justify-between items-center bg-slate-900/85 backdrop-blur-md p-2 sm:p-3 rounded-xl sm:rounded-2xl text-white border border-white/10 mb-2 sm:mb-3">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <button onclick="game.showScreen('levelMap')" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-xs sm:text-sm transition-all border border-slate-600 shrink-0">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h3 id="stageTitle" class="font-extrabold text-xs sm:text-base text-emerald-400 leading-tight">ด่านที่ 1: ป่ามหัศจรรย์</h3>
+                        <p id="stageSubtitle" class="text-[10px] sm:text-xs text-slate-300">แตะที่ตัวสัตว์เพื่อสำรวจ</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <div class="hidden sm:flex flex-col items-end">
+                        <span class="text-xs text-slate-400">ความคืบหน้าด่าน</span>
+                        <div class="w-32 bg-slate-700 h-2.5 rounded-full overflow-hidden mt-1">
+                            <div id="stageProgressBar" class="bg-emerald-500 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                    </div>
+                    <span id="stageProgressCounter" class="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-xs">
+                        0/6
+                    </span>
+                </div>
+            </div>
+
+            <!-- Interactive Stage Area Canvas Layer -->
+            <div id="stageViewport" class="relative flex-grow rounded-xl sm:rounded-2xl overflow-hidden border-2 border-slate-700/50 shadow-inner flex items-center justify-center bg-slate-900">
+                <!-- Background Theme Layer (Rendered Dynamically) -->
+                <div id="stageBackground" class="absolute inset-0 bg-gradient-to-b from-emerald-800 to-slate-900 transition-colors duration-700"></div>
+
+                <!-- Animated Background Decorative Canvas -->
+                <canvas id="stageAnimCanvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+
+                <!-- Interactive Animal Pins Grid Container -->
+                <div id="animalPinsContainer" class="absolute inset-0 z-10 touch-none">
+                    <!-- Dynamic Interactive Elements will be inserted here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Modal: Animal Question Dialog ================= -->
+        <div id="modal-question" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 hidden">
+            <div class="glass-panel w-full max-w-lg rounded-2xl sm:rounded-3xl p-4 sm:p-6 relative animate-in fade-in zoom-in duration-300 shadow-2xl border-2 border-white/60">
+                <!-- Close Button -->
+                <button onclick="game.closeQuestionModal()" class="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center font-bold transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
+                <!-- Animal Display Header -->
+                <div class="flex flex-col items-center text-center mb-4 sm:mb-5">
+                    <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-tr from-amber-100 to-emerald-100 p-2 border-2 border-emerald-400 shadow-lg flex items-center justify-center mb-2 sm:mb-3 floating">
+                        <div id="modalAnimalGraphic" class="w-full h-full flex items-center justify-center text-5xl sm:text-6xl">
+                            🐶
+                        </div>
+                    </div>
+                    <h3 id="modalAnimalName" class="text-xl sm:text-2xl font-black text-slate-800">สุนัข</h3>
+                    <span id="modalAnimalTag" class="text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300 font-semibold mt-1">
+                        สิ่งมีชีวิตในป่า
+                    </span>
+                </div>
+
+                <!-- Question Prompt -->
+                <div class="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center mb-4 sm:mb-5">
+                    <p class="text-slate-800 font-bold text-sm sm:text-lg">
+                        <i class="fa-circle-question fa-solid text-amber-500 mr-1"></i>
+                        สัตว์ชนิดนี้จัดอยู่ในกลุ่มประเภทใด?
+                    </p>
+                </div>
+
+                <!-- Answer Choice Buttons -->
+                <div id="answerButtonsGroup" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mb-2">
+                    <button onclick="game.submitAnswer(true)" class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-95 text-white font-extrabold text-sm sm:text-base shadow-md transition-all border border-emerald-400 flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-bone text-xl sm:text-2xl"></i>
+                        <span>สัตว์มีกระดูกสันหลัง</span>
+                    </button>
+                    <button onclick="game.submitAnswer(false)" class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 active:scale-95 text-white font-extrabold text-sm sm:text-base shadow-md transition-all border border-amber-400 flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-bug text-xl sm:text-2xl"></i>
+                        <span>สัตว์ไม่มีกระดูกสันหลัง</span>
+                    </button>
+                </div>
+
+                <!-- Feedback Response Box (Hidden by default) -->
+                <div id="feedbackBox" class="hidden p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border text-xs sm:text-sm animate-in fade-in duration-300">
+                    <div id="feedbackHeader" class="font-extrabold text-sm sm:text-base mb-1 flex items-center gap-2"></div>
+                    <p id="feedbackText" class="text-slate-700 text-xs sm:text-sm leading-relaxed mb-3"></p>
+                    <button id="feedbackNextBtn" onclick="game.nextAnimalOrFinish()" class="w-full py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs sm:text-sm hover:bg-slate-900 transition-all shadow">
+                        ตกลง / ดำเนินการต่อ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= Screen 4: Instructions ================= -->
+        <section id="screen-instructions" class="w-full max-w-3xl glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-8 hidden my-auto">
+            <div class="flex justify-between items-center mb-4 sm:mb-6 border-b border-slate-200 pb-3">
+                <h2 class="text-xl sm:text-2xl font-black text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-book-open text-amber-500"></i> วิธีการเล่นเกม
+                </h2>
+                <button onclick="game.showScreen('mainMenu')" class="px-3 py-1 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs sm:text-sm font-medium transition-all">
+                    ปิด
+                </button>
+            </div>
+
+            <div class="space-y-3 sm:space-y-4 text-slate-700 text-xs sm:text-base">
+                <div class="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/60 border border-slate-200">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-500 text-white font-black flex items-center justify-center shrink-0 text-xs sm:text-base">1</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800">สำรวจฉากธรรมชาติ</h4>
+                        <p class="text-xs sm:text-sm text-slate-600">เดินทางผ่าน 3 ด่าน (ป่าไม้, ทะเล, แหล่งน้ำ) แตะที่ไอคอนสัตว์ต่าง ๆ เพื่อเริ่มการสำรวจ</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/60 border border-slate-200">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-500 text-white font-black flex items-center justify-center shrink-0 text-xs sm:text-base">2</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800">จำแนกประเภทสัตว์</h4>
+                        <p class="text-xs sm:text-sm text-slate-600">ตอบคำถามว่าสัตว์ที่พบเป็น "สัตว์มีกระดูกสันหลัง" หรือ "สัตว์ไม่มีกระดูกสันหลัง" ตอบถูกรับ 1 คะแนน!</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/60 border border-slate-200">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-teal-500 text-white font-black flex items-center justify-center shrink-0 text-xs sm:text-base">3</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800">ปลดล็อกด่านและทำแบบทดสอบ 20 ข้อ</h4>
+                        <p class="text-xs sm:text-sm text-slate-600">เมื่อสำรวจครบทั้ง 3 ด่าน ระบบจะปลดล็อกแบบทดสอบประเมินความรู้ 20 ข้อเพื่อสรุประดับผลการเรียนรู้</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 sm:mt-6 text-center">
+                <button onclick="game.startAdventure()" class="w-full sm:w-auto px-8 py-3 rounded-xl sm:rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm sm:text-base shadow-lg transition-all">
+                    พร้อมแล้ว! เริ่มเล่นเลย
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= Screen 5: Interactive Knowledge Hub ================= -->
+        <section id="screen-knowledge" class="w-full max-w-4xl glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-8 hidden my-auto max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center mb-3 sm:mb-6 border-b border-slate-200 pb-3 shrink-0">
+                <div>
+                    <h2 class="text-lg sm:text-2xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-lightbulb text-amber-500"></i> สาระน่ารู้
+                    </h2>
+                    <p class="text-[10px] sm:text-xs text-slate-600">ความรู้วิทยาศาสตร์ เรื่องสัตว์ ป.6</p>
+                </div>
+                <button onclick="game.showScreen('mainMenu')" class="px-3 py-1 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs sm:text-sm font-medium transition-all">
+                    ย้อนกลับ
+                </button>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="flex rounded-xl bg-slate-200/80 p-1 mb-4 shrink-0">
+                <button id="tab-btn-vert" onclick="game.switchKnowledgeTab('vert')" class="flex-1 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all bg-emerald-500 text-white shadow">
+                    🦴 สัตว์มีกระดูกสันหลัง (5 กลุ่ม)
+                </button>
+                <button id="tab-btn-invert" onclick="game.switchKnowledgeTab('invert')" class="flex-1 py-2 rounded-lg font-extrabold text-xs sm:text-sm text-slate-600 hover:text-slate-900 transition-all">
+                    🐛 สัตว์ไม่มีกระดูกสันหลัง
+                </button>
+            </div>
+
+            <!-- Tab Content Scrollable Container -->
+            <div class="flex-grow overflow-y-auto pr-1">
+                <!-- Tab Content 1: Vertebrates -->
+                <div id="tab-content-vert" class="space-y-3">
+                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-emerald-900 text-xs sm:text-sm leading-relaxed mb-3">
+                        <strong>สัตว์มีกระดูกสันหลัง (Vertebrates):</strong> มีแนวกระดูกสันหลังเป็นแกนกลางช่วยพยุงร่างกาย แบ่งออกเป็น 5 กลุ่มหลัก:
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs sm:text-sm">
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <h4 class="font-extrabold text-emerald-700 text-sm sm:text-base mb-1">1. กลุ่มปลา 🐟</h4>
+                            <p class="text-slate-600">สัตว์น้ำ เลือดเย็น หายใจด้วยเหงือก มีครีบใช้ในการเคลื่อนที่ เช่น ปลานิล ปลาฉลาม</p>
+                        </div>
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <h4 class="font-extrabold text-emerald-700 text-sm sm:text-base mb-1">2. กลุ่มสัตว์สะเทินน้ำสะเทินบก 🐸</h4>
+                            <p class="text-slate-600">เลือดเย็น ออกลูกเป็นไข่ ตัวอ่อนหายใจด้วยเหงือก ตัวเต็มวัยหายใจด้วยปอดและผิวหนัง เช่น กบ อึ่งอ่าง</p>
+                        </div>
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <h4 class="font-extrabold text-emerald-700 text-sm sm:text-base mb-1">3. กลุ่มสัตว์เลื้อยคลาน 🐢</h4>
+                            <p class="text-slate-600">เลือดเย็น ผิวหนังแห้งมีเกล็ด วางไข่บนบก หายใจด้วยปอด เช่น งู เต่า จระเข้</p>
+                        </div>
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <h4 class="font-extrabold text-emerald-700 text-sm sm:text-base mb-1">4. กลุ่มสัตว์ปีก 🦅</h4>
+                            <p class="text-slate-600">เลือดอุ่น มีขนเป็นแผง ขาคู่หน้าพัฒนาเป็นปีก หายใจด้วยปอด มีถุงลมช่วยหายใจ เช่น นก เป็ด</p>
+                        </div>
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm md:col-span-2">
+                            <h4 class="font-extrabold text-emerald-700 text-sm sm:text-base mb-1">5. กลุ่มสัตว์เลี้ยงลูกด้วยนม 🐕</h4>
+                            <p class="text-slate-600">เลือดอุ่น ตัวเมียมีเต้านมสร้างน้ำนม หายใจด้วยปอด มีเส้นขนปกคลุม เช่น สุนัข ช้าง วาฬ มนุษย์</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Content 2: Invertebrates -->
+                <div id="tab-content-invert" class="space-y-3 hidden">
+                    <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-amber-900 text-xs sm:text-sm leading-relaxed mb-3">
+                        <strong>สัตว์ไม่มีกระดูกสันหลัง (Invertebrates):</strong> ไม่มีโครงกระดูกแข็งภายในร่างกาย มีปริมาณชนิดมากที่สุดในโลก (กว่า 95%)
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs sm:text-sm">
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <h4 class="font-extrabold text-amber-700 text-sm sm:text-base mb-1">แมลงและแมง 🦋</h4>
+                            <p class="text-slate-600">ลำตัวเป็นส่วน มีเปลือกแข็งหุ้มภายนอก เช่น ผีเสื้อ มด ยุง แมงมุม (แมลง 6 ขา / แมง 8 ขา)</p>
+                        </div>
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <h4 class="font-extrabold text-amber-700 text-sm sm:text-base mb-1">สัตว์เปลือกแข็งลำตัวมีข้อ 🦀</h4>
+                            <p class="text-slate-600">มีเปลือกหนาหุ้มลำตัว มีขาเป็นข้อๆ เช่น กุ้ง ปู กั้ง</p>
+                        </div>
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <h4 class="font-extrabold text-amber-700 text-sm sm:text-base mb-1">หอยและหมึก 🐚</h4>
+                            <p class="text-slate-600">ลำตัวนิ่ม บางชนิดมีเปลือกแข็งหุ้ม เช่น หอยทาก ปลาหมึก (หมึกเป็นสัตว์ไม่มีกระดูกสันหลัง)</p>
+                        </div>
+                        <div class="p-3 sm:p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <h4 class="font-extrabold text-amber-700 text-sm sm:text-base mb-1">ลำตัวเป็นปล้อง / ลำตัวนิ่ม 🪱</h4>
+                            <p class="text-slate-600">ลำตัวกลมยาวเป็นปล้อง ไม่มีขา เช่น ไส้เดือนดิน และแมงกะพรุน (ลำตัวใสมีวุ้น)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Screen 6: 20-Question Final Quiz ================= -->
+        <section id="screen-quiz" class="w-full max-w-3xl glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-8 hidden my-auto">
+            <!-- Quiz Progress Top Bar -->
+            <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-3">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-amber-500 text-white font-black flex items-center justify-center shadow text-xs sm:text-base">
+                        <i class="fa-solid fa-clipboard-question"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-sm sm:text-lg text-slate-800 leading-tight">แบบทดสอบท้ายบทเรียน</h3>
+                        <p class="text-[10px] sm:text-xs text-slate-500">วัดความรู้วิทยาศาสตร์ เรื่องสัตว์ ป.6</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] sm:text-xs text-slate-400 block">ข้อที่</span>
+                    <span id="quizCounterText" class="text-amber-600 font-extrabold text-base sm:text-lg">1/20</span>
+                </div>
+            </div>
+
+            <!-- Quiz Progress Bar -->
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden mb-4">
+                <div id="quizProgressBar" class="bg-amber-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+
+            <!-- Question Box -->
+            <div class="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 mb-4 shadow-sm">
+                <h4 id="quizQuestionText" class="text-slate-800 font-extrabold text-sm sm:text-xl leading-relaxed">
+                    กำลังโหลดคำถาม...
+                </h4>
+            </div>
+
+            <!-- Multiple Choice Options (4 Choices) -->
+            <div id="quizOptionsContainer" class="grid grid-cols-1 gap-2.5 mb-4">
+                <!-- Option buttons dynamically populated -->
+            </div>
+
+            <!-- Footer Action Buttons -->
+            <div class="flex justify-between items-center pt-2">
+                <button onclick="game.confirmExitQuiz()" class="text-xs text-slate-400 hover:text-red-500 font-semibold transition-all">
+                    <i class="fa-solid fa-xmark mr-1"></i> ออกจากแบบทดสอบ
+                </button>
+                <button id="quizNextBtn" disabled onclick="game.nextQuizQuestion()" class="px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-slate-300 text-slate-500 font-bold text-xs sm:text-sm transition-all shadow">
+                    ข้อต่อไป <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= Screen 7: Quiz Results Summary ================= -->
+        <section id="screen-summary" class="w-full max-w-3xl glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-10 text-center hidden my-auto relative overflow-hidden">
+            <div class="relative z-10">
+                <div id="summaryBadge" class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-300 text-slate-900 mx-auto flex items-center justify-center text-3xl sm:text-4xl shadow-xl floating mb-3">
+                    🏆
+                </div>
+
+                <h2 class="text-2xl sm:text-3xl font-black text-slate-800 mb-1">สรุปผลการเรียนรู้</h2>
+                <p id="summaryGradeTitle" class="text-base sm:text-xl font-bold text-emerald-600 mb-4 sm:mb-6">ระดับผลการเรียนรู้: ดีเยี่ยม</p>
+
+                <!-- Score Dashboard Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4 sm:mb-6">
+                    <div class="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-sm">
+                        <span class="text-[10px] sm:text-xs text-slate-400 block">คะแนนรวม</span>
+                        <span id="summaryScoreText" class="text-lg sm:text-2xl font-black text-emerald-600">18/20</span>
+                    </div>
+                    <div class="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-sm">
+                        <span class="text-[10px] sm:text-xs text-slate-400 block">ตอบถูก</span>
+                        <span id="summaryCorrectText" class="text-lg sm:text-2xl font-black text-emerald-500">18 ข้อ</span>
+                    </div>
+                    <div class="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-sm">
+                        <span class="text-[10px] sm:text-xs text-slate-400 block">ตอบผิด</span>
+                        <span id="summaryWrongText" class="text-lg sm:text-2xl font-black text-rose-500">2 ข้อ</span>
+                    </div>
+                    <div class="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-sm">
+                        <span class="text-[10px] sm:text-xs text-slate-400 block">คิดเป็น</span>
+                        <span id="summaryPercentText" class="text-lg sm:text-2xl font-black text-amber-500">90%</span>
+                    </div>
+                </div>
+
+                <!-- Encourage Message Box -->
+                <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50 border border-emerald-200 mb-4 sm:mb-6">
+                    <p id="summaryEncourageText" class="text-xs sm:text-sm font-medium text-emerald-900 leading-relaxed">
+                        สุดยอดมาก! หนูมีความเชี่ยวชาญในการจำแนกประเภทสัตว์มีกระดูกสันหลังและไม่มีกระดูกสันหลังในระดับดีเยี่ยม!
+                    </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row justify-center gap-2.5">
+                    <button onclick="game.toggleReviewAnswersModal()" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm shadow transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-list-check text-amber-400"></i> ดูเฉลยคำตอบ
+                    </button>
+                    <button onclick="game.startAdventure()" class="w-full sm:w-auto px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm shadow transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-right"></i> เล่นอีกครั้ง
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Modal: Detailed Answer Review ================= -->
+        <div id="modal-review" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 hidden">
+            <div class="glass-panel w-full max-w-2xl max-h-[85vh] rounded-2xl sm:rounded-3xl p-4 sm:p-6 relative flex flex-col shadow-2xl">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-3 mb-3">
+                    <h3 class="font-extrabold text-base sm:text-xl text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-square-check text-emerald-500"></i> เฉลยคำตอบแบบทดสอบ 20 ข้อ
+                    </h3>
+                    <button onclick="game.toggleReviewAnswersModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Review Content Scroll Container -->
+                <div id="reviewContainer" class="flex-grow overflow-y-auto space-y-2.5 pr-1 text-xs sm:text-sm">
+                    <!-- Dynamic Answer Review Items -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full bg-slate-950/90 text-slate-500 text-center py-2 sm:py-3 text-[10px] sm:text-xs border-t border-white/5">
+        <p>Animal Explorer © ภารกิจนักสำรวจโลกของสัตว์ — สื่อการเรียนรู้วิทยาศาสตร์ ป.6</p>
+    </footer>
+
+    <!-- Game Logic Scripts -->
+    <script>
+        /**
+         * Sound Effects Synthesizer using Web Audio API
+         */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+            }
+            playCorrect() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+            playWrong() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now); // A3
+                osc.frequency.setValueAtTime(180, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+            playUnlock() {
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.4);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        }
+
+        /**
+         * Particle FX Engine for Canvas Animations
+         */
+        class FXEngine {
+            constructor() {
+                this.canvas = document.getElementById('fxCanvas');
+                if (!this.canvas) return;
+                this.ctx = this.canvas.getContext('2d');
+                this.particles = [];
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.loop();
+            }
+            resize() {
+                if (!this.canvas) return;
+                this.canvas.width = window.innerWidth || 360;
+                this.canvas.height = window.innerHeight || 640;
+            }
+            spawnConfetti(x, y) {
+                if (!this.canvas) return;
+                const colors = ['#f59e0b', '#10b981', '#06b6d4', '#ec4899', '#8b5cf6'];
+                for (let i = 0; i < 40; i++) {
+                    this.particles.push({
+                        x: x || this.canvas.width / 2,
+                        y: y || this.canvas.height / 2,
+                        vx: (Math.random() - 0.5) * 12,
+                        vy: (Math.random() - 0.8) * 12,
+                        size: Math.random() * 8 + 4,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        life: 1,
+                        decay: Math.random() * 0.02 + 0.015,
+                        rotation: Math.random() * 360
+                    });
+                }
+            }
+            loop() {
+                if (!this.canvas || !this.ctx) return;
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.3; // gravity
+                    p.life -= p.decay;
+                    p.rotation += 5;
+
+                    if (p.life <= 0) {
+                        this.particles.splice(i, 1);
+                        continue;
+                    }
+
+                    this.ctx.save();
+                    this.ctx.globalAlpha = p.life;
+                    this.ctx.translate(p.x, p.y);
+                    this.ctx.rotate((p.rotation * Math.PI) / 180);
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    this.ctx.restore();
+                }
+                requestAnimationFrame(() => this.loop());
+            }
+        }
+
+        /**
+         * Main Game Controller
+         */
+        class AnimalExplorerGame {
+            constructor() {
+                this.sound = new SoundFX();
+                this.fx = new FXEngine();
+
+                // Game State
+                this.totalScore = 0;
+                this.currentStage = 1;
+                this.unlockedStage = 1;
+                
+                // Stage Data & Progress
+                this.stageProgress = {
+                    1: { explored: new Set(), total: 6 },
+                    2: { explored: new Set(), total: 6 },
+                    3: { explored: new Set(), total: 6 }
+                };
+
+                // Current Active Question State
+                this.activeAnimal = null;
+
+                // Stage Definitions & Animals
+                this.stagesData = {
+                    1: {
+                        name: "ป่ามหัศจรรย์",
+                        subtitle: "สำรวจสัตว์ในป่าไม้",
+                        bgGradient: "from-emerald-950 via-teal-900 to-slate-900",
+                        themeColor: "#10b981",
+                        animals: [
+                            { id: "dog", name: "สุนัข", icon: "🐶", isVertebrate: true, pos: { top: "30%", left: "20%" }, info: "สุนัขเป็นสัตว์เลี้ยงลูกด้วยนม มีกระดูกสันหลัง เลือดอุ่น" },
+                            { id: "elephant", name: "ช้าง", icon: "🐘", isVertebrate: true, pos: { top: "55%", left: "75%" }, info: "ช้างเป็นสัตว์เลี้ยงลูกด้วยนมขนาดใหญ่ มีกระดูกสันหลังแข็งแรง" },
+                            { id: "snake", name: "งู", icon: "🐍", isVertebrate: true, pos: { top: "72%", left: "38%" }, info: "งูเป็นสัตว์เลื้อยคลาน มีกระดูกสันหลังและกระดูกซี่โครงยาวต่อเนื่อง" },
+                            { id: "butterfly", name: "ผีเสื้อ", icon: "🦋", isVertebrate: false, pos: { top: "22%", left: "60%" }, info: "ผีเสื้อเป็นแมลง ไม่มีกระดูกสันหลัง มีโครงร่างแข็งภายนอกหุ้ม" },
+                            { id: "ant", name: "มด", icon: "🐜", isVertebrate: false, pos: { top: "82%", left: "18%" }, info: "มดเป็นแมลง ไม่มีกระดูกสันหลัง ลำตัวแบ่งเป็น 3 ส่วน" },
+                            { id: "spider", name: "แมงมุม", icon: "🕷️", isVertebrate: false, pos: { top: "40%", left: "85%" }, info: "แมงมุมเป็นสัตว์ขาปล้อง (มี 8 ขา) ไม่มีกระดูกสันหลัง" }
+                        ]
+                    },
+                    2: {
+                        name: "โลกใต้ท้องทะเล",
+                        subtitle: "สำรวจชีวิตใต้น้ำ",
+                        bgGradient: "from-sky-950 via-blue-900 to-slate-950",
+                        themeColor: "#0284c7",
+                        animals: [
+                            { id: "fish", name: "ปลานิล", icon: "🐟", isVertebrate: true, pos: { top: "32%", left: "22%" }, info: "ปลานิลเป็นสัตว์กลุ่มปลา มีกระดูกสันหลังและก้างปลาภายใน" },
+                            { id: "shark", name: "ปลาฉลาม", icon: "🦈", isVertebrate: true, pos: { top: "58%", left: "75%" }, info: "ปลาฉลามเป็นปลาซี่โครงกระดูกอ่อน มีกระดูกสันหลังเป็นแกนพยุง" },
+                            { id: "octopus", name: "ปลาหมึก", icon: "🐙", isVertebrate: false, pos: { top: "72%", left: "42%" }, info: "หมึกเป็นสัตว์ลำตัวนิ่ม ไม่มีกระดูกสันหลัง (ไม่ใช่ปลา)" },
+                            { id: "crab", name: "ปู", icon: "🦀", isVertebrate: false, pos: { top: "80%", left: "18%" }, info: "ปูเป็นสัตว์เปลือกแข็งหุ้มลำตัว ไม่มีกระดูกสันหลัง" },
+                            { id: "shrimp", name: "กุ้ง", icon: "🦐", isVertebrate: false, pos: { top: "45%", left: "82%" }, info: "กุ้งเป็นสัตว์ลำตัวมีข้อ มีเปลือกแข็งหุ้ม ไม่มีกระดูกสันหลัง" },
+                            { id: "jellyfish", name: "แมงกะพรุน", icon: "🪼", isVertebrate: false, pos: { top: "20%", left: "52%" }, info: "แมงกะพรุนเป็นสัตว์ลำตัวนิ่มใสนิ่ม ไม่มีกระดูกสันหลัง" }
+                        ]
+                    },
+                    3: {
+                        name: "ดินแดนแหล่งน้ำ",
+                        subtitle: "สำรวจบึงธรรมชาติ",
+                        bgGradient: "from-amber-950 via-stone-900 to-slate-950",
+                        themeColor: "#ca8a04",
+                        animals: [
+                            { id: "frog", name: "กบ", icon: "🐸", isVertebrate: true, pos: { top: "65%", left: "25%" }, info: "กบเป็นสัตว์สะเทินน้ำสะเทินบก มีกระดูกสันหลัง ขาหลังแข็งแรง" },
+                            { id: "turtle", name: "เต่า", icon: "🐢", isVertebrate: true, pos: { top: "70%", left: "70%" }, info: "เต่าเป็นสัตว์เลื้อยคลาน มีกระดูกสันหลังยึดติดกับกระดอง" },
+                            { id: "snail", name: "หอยทาก", icon: "🐌", isVertebrate: false, pos: { top: "38%", left: "18%" }, info: "หอยทากเป็นสัตว์ลำตัวนิ่ม มีเปลือกหอยหุ้ม ไม่มีกระดูกสันหลัง" },
+                            { id: "earthworm", name: "ไส้เดือนดิน", icon: "🪱", isVertebrate: false, pos: { top: "82%", left: "48%" }, info: "ไส้เดือนดินเป็นสัตว์ลำตัวเป็นปล้อง ไม่มีกระดูกสันหลัง" },
+                            { id: "shell", name: "หอย", icon: "🐚", isVertebrate: false, pos: { top: "50%", left: "82%" }, info: "หอยเป็นสัตว์ลำตัวนิ่ม ไม่มีกระดูกสันหลัง สร้างเปลือกปูนกาบแข็ง" },
+                            { id: "egret", name: "นกกระยาง", icon: "🦩", isVertebrate: true, pos: { top: "22%", left: "45%" }, info: "นกกระยางเป็นสัตว์ปีก มีกระดูกสันหลังแบบกลวงเบา" }
+                        ]
+                    }
+                };
+
+                // Quiz Question Pool (20 Unique Scientific Items for Grade 6)
+                this.quizMasterBank = [
+                    { q: "สัตว์ชนิดใดจัดเป็น 'สัตว์มีกระดูกสันหลัง' ทั้งหมด?", options: ["กบ, เสือ, ปลาช่อน", "ผีเสื้อ, มด, ยุง", "ปลาหมึก, กุ้ง, ปู", "ไส้เดือน, หอยทาก, แมงกะพรุน"], answer: 0 },
+                    { q: "โครงสร้างใดที่เป็นลักษณะสำคัญเด่นชัดของ 'สัตว์มีกระดูกสันหลัง'?", options: ["มีกระดองหุ้มภายนอก", "มีแนวกระดูกแกนกลางเป็นแกนพยุงร่างกาย", "มีเปลือกแข็งหุ้มลำตัว", "มีรอยต่อลำตัวเป็นปล้อง"], answer: 1 },
+                    { q: "สัตว์กลุ่มใดถูกจัดอยู่ในประเภท 'สัตว์สะเทินน้ำสะเทินบก'?", options: ["เต่าทะเล", "จระเข้", "คางคก", "ปลาปอด"], answer: 2 },
+                    { q: "ข้อใดกล่าวถูกต้องเกี่ยวกับ 'ปลาหมึก' ตามหลักวิทยาศาสตร์?", options: ["เป็นสัตว์กลุ่มปลา มีกระดูกสันหลัง", "เป็นสัตว์เลื้อยคลาน", "เป็นสัตว์ไม่มีกระดูกสันหลัง ลำตัวนิ่ม", "เป็นสัตว์สะเทินน้ำสะเทินบก"], answer: 2 },
+                    { q: "กลุ่มสัตว์ปีกมีลักษณะโครงสร้างกระดูกสันหลังพิเศษอย่างไรเพื่อช่วยในการบิน?", options: ["กระดูกเป็นหนอนกลม", "กระดูกกลวงเบาแต่แข็งแรง", "ไม่มีกระดูกสันหลัง", "กระดูกเป็นเกล็ดแข็ง"], answer: 1 },
+                    { q: "สัตว์ชนิดใดต่อไปนี้เป็นสัตว์เลี้ยงลูกด้วยนมที่อาศัยอยู่ในทะเล?", options: ["ปลาฉลาม", "ปลานิล", "วาฬ", "แมงกะพรุน"], answer: 2 },
+                    { q: "สัตว์ในข้อใดจัดอยู่ในกลุ่ม 'สัตว์ไม่มีกระดูกสันหลัง'?", options: ["งูพิษ", "แมงมุม", "นกพิราบ", "สุนัข"], answer: 1 },
+                    { q: "สัตว์สะเทินน้ำสะเทินบก ตัวอ่อน (ลูกอ๊อด) หายใจด้วยอวัยวะใด?", options: ["ปอด", "ผิวหนัง", "เหงือก", "จมูก"], answer: 2 },
+                    { q: "เกล็ดแห้งปกคลุมลำตัว และการวางไข่บนบก เป็นลักษณะเด่นของสัตว์กลุ่มใด?", options: ["สัตว์ปีก", "สัตว์เลื้อยคลาน", "สัตว์สะเทินน้ำสะเทินบก", "สัตว์เลี้ยงลูกด้วยนม"], answer: 1 },
+                    { q: "สัตว์กลุ่มใดมีจำนวนชนิดและปริมาณมากที่สุดในโลก?", options: ["สัตว์เลี้ยงลูกด้วยนม", "สัตว์มีกระดูกสันหลัง", "สัตว์ไม่มีกระดูกสันหลัง (เช่น แมลง)", "สัตว์ปีก"], answer: 2 },
+                    { q: "เต่า จัดเป็นสัตว์ประเภทใด?", options: ["สัตว์สะเทินน้ำสะเทินบก", "สัตว์เลื้อยคลานมีกระดูกสันหลัง", "สัตว์ไม่มีกระดูกสันหลัง", "สัตว์เลี้ยงลูกด้วยนม"], answer: 1 },
+                    { q: "แมงกะพรุน จัดอยู่ในประเภทใด?", options: ["สัตว์มีกระดูกสันหลัง", "สัตว์ไม่มีกระดูกสันหลัง", "สัตว์ปีก", "สัตว์สะเทินน้ำสะเทินบก"], answer: 1 },
+                    { q: "ข้อใดเป็นสัตว์เลี้ยงลูกด้วยนมทั้งหมด?", options: ["มนุษย์, สุนัข, ช้าง", "นกแก้ว, ไก่, เป็ด", "งู, กิ้งก่า, เต่า", "กุ้ง, ปู, ปลา"], answer: 0 },
+                    { q: "กุ้งและปู รักษารูปทรงของร่างกายด้วยโครงสร้างใด?", options: ["กระดูกสันหลังภายใน", "เปลือกแข็งภายนอกหุ้มลำตัว", "ถุงลม", "ท่อน้ำ"], answer: 1 },
+                    { q: "ไส้เดือนดินจัดเป็นสัตว์กลุ่มใด?", options: ["สัตว์ไม่มีกระดูกสันหลัง ลำตัวเป็นปล้อง", "สัตว์เลื้อยคลาน", "สัตว์สะเทินน้ำสะเทินบก", "สัตว์มีกระดูกสันหลัง"], answer: 0 },
+                    { q: "ข้อใดเป็นเกณฑ์สำคัญที่สุดที่ใช้นับว่าสัตว์นั้นเป็น 'สัตว์มีกระดูกสันหลัง'?", options: ["การมีขา 4 ขา", "การมีกระดูกสันหลังเป็นแกนกลางพยุงร่างกาย", "การหายใจด้วยปอด", "การออกลูกเป็นตัว"], answer: 1 },
+                    { q: "นกและเป็ด จัดเป็นสัตว์ประเภทใด?", options: ["สัตว์มีกระดูกสันหลัง เลือดอุ่น", "สัตว์ไม่มีกระดูกสันหลัง", "สัตว์เลื้อยคลาน", "สัตว์เลือดเย็น"], answer: 0 },
+                    { q: "สัตว์ในข้อใดต่อไปนี้ 'ไม่มีกระดูกสันหลัง' ทั้งหมด?", options: ["ผีเสื้อ, หอยทาก, มด", "สุนัข, ปลา, นก", "กบ, เต่า, งู", "ช้าง, ม้า, วัว"], answer: 0 },
+                    { q: "คางคก และ อึ่งอ่าง อยู่ในกลุ่มเดียวกับสัตว์ชนิดใด?", options: ["กบ", "จระเข้", "เต่า", "งู"], answer: 0 },
+                    { q: "หากนักเรียนพบสัตว์ชนิดใหม่ที่มีกระดูกสันหลัง ออกลูกเป็นไข่ มีขนเป็นแผง ควรจัดอยู่ในกลุ่มใด?", options: ["กลุ่มปลา", "กลุ่มสัตว์ปีก", "กลุ่มสัตว์เลื้อยคลาน", "กลุ่มสัตว์เลี้ยงลูกด้วยนม"], answer: 1 }
+                ];
+
+                // Active Quiz Session Variables
+                this.activeQuizQuestions = [];
+                this.currentQuizIndex = 0;
+                this.userAnswers = [];
+
+                setTimeout(() => this.initCanvasAnimation(), 100);
+            }
+
+            /**
+             * Screen Display Navigation Handler
+             */
+            showScreen(screenId) {
+                const screens = ['mainMenu', 'levelMap', 'gameplay', 'instructions', 'knowledge', 'quiz', 'summary'];
+                screens.forEach(s => {
+                    const el = document.getElementById(`screen-${s}`);
+                    if (el) el.classList.add('hidden');
+                });
+                const target = document.getElementById(`screen-${screenId}`);
+                if (target) target.classList.remove('hidden');
+
+                // Header Visibility Control
+                const header = document.getElementById('mainHeader');
+                if (screenId === 'mainMenu') {
+                    header.classList.add('opacity-90');
+                } else {
+                    header.classList.remove('opacity-90');
+                }
+
+                this.updateUIHeaderStats();
+
+                if (screenId === 'gameplay') {
+                    setTimeout(() => {
+                        window.dispatchEvent(new Event('resize'));
+                    }, 100);
+                }
+            }
+
+            /**
+             * Starts or resumes the Main Adventure Map
+             */
+            startAdventure() {
+                this.showScreen('levelMap');
+                this.updateStageMapUI();
+            }
+
+            /**
+             * Update Level Map Buttons and Locks State
+             */
+            updateStageMapUI() {
+                // Update Progress Texts
+                for (let i = 1; i <= 3; i++) {
+                    const count = this.stageProgress[i].explored.size;
+                    const total = this.stageProgress[i].total;
+                    document.getElementById(`stage${i}-progress`).innerText = `${count}/${total} สัตว์`;
+                }
+
+                // Stage 2 Unlock Check
+                const stage2Card = document.getElementById('stage-card-2');
+                const stage2Btn = document.getElementById('stage2-btn');
+                const stage2Lock = document.getElementById('stage2-lock');
+                if (this.unlockedStage >= 2) {
+                    stage2Card.classList.remove('opacity-80', 'cursor-not-allowed');
+                    stage2Card.classList.add('cursor-pointer');
+                    stage2Lock.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-300"></i> ปลดล็อกแล้ว`;
+                    stage2Btn.disabled = false;
+                    stage2Btn.className = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white text-sky-800 font-bold text-xs sm:text-sm shadow hover:bg-sky-50 transition-all flex items-center gap-1";
+                    stage2Btn.innerHTML = `เข้าสู่ด่าน <i class="fa-solid fa-chevron-right text-[10px]"></i>`;
+                }
+
+                // Stage 3 Unlock Check
+                const stage3Card = document.getElementById('stage-card-3');
+                const stage3Btn = document.getElementById('stage3-btn');
+                const stage3Lock = document.getElementById('stage3-lock');
+                if (this.unlockedStage >= 3) {
+                    stage3Card.classList.remove('opacity-80', 'cursor-not-allowed');
+                    stage3Card.classList.add('cursor-pointer');
+                    stage3Lock.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-300"></i> ปลดล็อกแล้ว`;
+                    stage3Btn.disabled = false;
+                    stage3Btn.className = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white text-amber-800 font-bold text-xs sm:text-sm shadow hover:bg-amber-50 transition-all flex items-center gap-1";
+                    stage3Btn.innerHTML = `เข้าสู่ด่าน <i class="fa-solid fa-chevron-right text-[10px]"></i>`;
+                }
+
+                // Quiz Banner Unlock Check (If stage 3 complete)
+                if (this.stageProgress[3].explored.size >= 6) {
+                    document.getElementById('quiz-unlock-banner').classList.remove('hidden');
+                }
+            }
+
+            /**
+             * Loads and Renders Interactive Stage Viewport
+             */
+            loadStage(stageNum) {
+                if (stageNum > this.unlockedStage) return;
+                this.currentStage = stageNum;
+                const data = this.stagesData[stageNum];
+
+                document.getElementById('stageTitle').innerText = `ด่านที่ ${stageNum}: ${data.name}`;
+                document.getElementById('stageSubtitle').innerText = data.subtitle;
+
+                // Set Stage Background Style
+                const bgEl = document.getElementById('stageBackground');
+                bgEl.className = `absolute inset-0 bg-gradient-to-b ${data.bgGradient} transition-colors duration-700`;
+
+                this.renderStageAnimalPins();
+                this.updateStageProgressUI();
+                this.showScreen('gameplay');
+            }
+
+            /**
+             * Render Animal Pins inside the Viewport
+             */
+            renderStageAnimalPins() {
+                const container = document.getElementById('animalPinsContainer');
+                container.innerHTML = '';
+                const stageData = this.stagesData[this.currentStage];
+
+                stageData.animals.forEach(animal => {
+                    const isExplored = this.stageProgress[this.currentStage].explored.has(animal.id);
+                    
+                    const pin = document.createElement('div');
+                    pin.className = `animal-marker absolute flex flex-col items-center cursor-pointer transform -translate-x-1/2 -translate-y-1/2 z-20`;
+                    pin.style.top = animal.pos.top;
+                    pin.style.left = animal.pos.left;
+                    pin.onclick = () => this.openQuestionModal(animal);
+
+                    pin.innerHTML = `
+                        <div class="relative group">
+                            <!-- Outer Sparkle Ring -->
+                            <div class="${isExplored ? 'bg-emerald-500/30' : 'bg-amber-400/40 ripple-effect'} absolute -inset-2 rounded-full blur-xs"></div>
+                            
+                            <!-- Animal Icon Container -->
+                            <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl ${isExplored ? 'bg-emerald-600 border-emerald-300' : 'bg-slate-800 border-amber-400'} border-2 flex items-center justify-center text-2xl sm:text-4xl shadow-2xl relative">
+                                ${animal.icon}
+                                ${isExplored ? '<div class="absolute -top-1.5 -right-1.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] sm:text-xs shadow"><i class="fa-solid fa-check"></i></div>' : ''}
+                            </div>
+                        </div>
+                        <span class="mt-1 px-2 py-0.5 rounded-full bg-slate-900/90 text-white text-[10px] sm:text-xs font-bold border border-white/20 whitespace-nowrap shadow-md">
+                            ${animal.name}
+                        </span>
+                    `;
+
+                    container.appendChild(pin);
+                });
+            }
+
+            /**
+             * Opens Question Modal for selected animal
+             */
+            openQuestionModal(animal) {
+                this.activeAnimal = animal;
+                document.getElementById('modalAnimalGraphic').innerText = animal.icon;
+                document.getElementById('modalAnimalName').innerText = animal.name;
+                document.getElementById('modalAnimalTag').innerText = `ฉาก: ${this.stagesData[this.currentStage].name}`;
+
+                // Reset Modal Feedback state
+                document.getElementById('answerButtonsGroup').classList.remove('hidden');
+                document.getElementById('feedbackBox').classList.add('hidden');
+
+                document.getElementById('modal-question').classList.remove('hidden');
+            }
+
+            closeQuestionModal() {
+                document.getElementById('modal-question').classList.add('hidden');
+            }
+
+            /**
+             * Handle Answer Submission during exploration
+             */
+            submitAnswer(userThinksVertebrate) {
+                const animal = this.activeAnimal;
+                const isCorrect = userThinksVertebrate === animal.isVertebrate;
+                
+                const answerGroup = document.getElementById('answerButtonsGroup');
+                const feedbackBox = document.getElementById('feedbackBox');
+                const feedbackHeader = document.getElementById('feedbackHeader');
+                const feedbackText = document.getElementById('feedbackText');
+
+                answerGroup.classList.add('hidden');
+                feedbackBox.classList.remove('hidden');
+
+                if (isCorrect) {
+                    this.sound.playCorrect();
+                    this.fx.spawnConfetti();
+
+                    // Award points if not already explored
+                    if (!this.stageProgress[this.currentStage].explored.has(animal.id)) {
+                        this.totalScore += 1;
+                        this.stageProgress[this.currentStage].explored.add(animal.id);
+                    }
+
+                    feedbackBox.className = "p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-900 animate-in fade-in";
+                    feedbackHeader.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 text-lg sm:text-xl"></i> เก่งมาก! ตอบถูกต้อง (+1 คะแนน)`;
+                    feedbackText.innerHTML = `<strong>${animal.name}</strong> เป็น${animal.isVertebrate ? 'สัตว์มีกระดูกสันหลัง' : 'สัตว์ไม่มีกระดูกสันหลัง'} <br><span class="text-[11px] sm:text-xs text-slate-600">${animal.info}</span>`;
+                } else {
+                    this.sound.playWrong();
+                    feedbackBox.className = "p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 animate-in fade-in";
+                    feedbackHeader.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-600 text-lg sm:text-xl"></i> ยังไม่ถูกต้อง ลองสังเกตอีกครั้งนะ`;
+                    feedbackText.innerHTML = `คำตอบที่ถูกต้องคือ: <strong>${animal.name} เป็น${animal.isVertebrate ? 'สัตว์มีกระดูกสันหลัง' : 'สัตว์ไม่มีกระดูกสันหลัง'}</strong><br><span class="text-[11px] sm:text-xs text-slate-600">${animal.info}</span>`;
+                }
+
+                this.updateUIHeaderStats();
+                this.updateStageProgressUI();
+                this.renderStageAnimalPins();
+            }
+
+            /**
+             * Check stage completion & progression
+             */
+            nextAnimalOrFinish() {
+                this.closeQuestionModal();
+                const exploredCount = this.stageProgress[this.currentStage].explored.size;
+                const totalCount = this.stageProgress[this.currentStage].total;
+
+                if (exploredCount >= totalCount) {
+                    // Stage Complete Logic
+                    if (this.currentStage < 3 && this.unlockedStage <= this.currentStage) {
+                        this.unlockedStage = this.currentStage + 1;
+                        this.sound.playUnlock();
+                    }
+                    
+                    setTimeout(() => {
+                        this.showScreen('levelMap');
+                        this.updateStageMapUI();
+                    }, 400);
+                }
+            }
+
+            /**
+             * Update Stage Level Progress Bar Indicator
+             */
+            updateStageProgressUI() {
+                const count = this.stageProgress[this.currentStage].explored.size;
+                const total = this.stageProgress[this.currentStage].total;
+                const percent = (count / total) * 100;
+
+                document.getElementById('stageProgressBar').style.width = `${percent}%`;
+                document.getElementById('stageProgressCounter').innerText = `${count}/${total} สัตว์`;
+            }
+
+            /**
+             * Global Header Stats Updater
+             */
+            updateUIHeaderStats() {
+                document.getElementById('totalScoreText').innerText = this.totalScore;
+                document.getElementById('currentLevelHeader').innerText = `${this.currentStage}/3`;
+            }
+
+            /**
+             * Knowledge Hub Tab Switcher
+             */
+            switchKnowledgeTab(tabKey) {
+                const vertBtn = document.getElementById('tab-btn-vert');
+                const invertBtn = document.getElementById('tab-btn-invert');
+                const vertContent = document.getElementById('tab-content-vert');
+                const invertContent = document.getElementById('tab-content-invert');
+
+                if (tabKey === 'vert') {
+                    vertBtn.className = "flex-1 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all bg-emerald-500 text-white shadow";
+                    invertBtn.className = "flex-1 py-2 rounded-lg font-extrabold text-xs sm:text-sm text-slate-600 hover:text-slate-900 transition-all";
+                    vertContent.classList.remove('hidden');
+                    invertContent.classList.add('hidden');
+                } else {
+                    invertBtn.className = "flex-1 py-2 rounded-lg font-extrabold text-xs sm:text-sm transition-all bg-amber-500 text-white shadow";
+                    vertBtn.className = "flex-1 py-2 rounded-lg font-extrabold text-xs sm:text-sm text-slate-600 hover:text-slate-900 transition-all";
+                    invertContent.classList.remove('hidden');
+                    vertContent.classList.add('hidden');
+                }
+            }
+
+            /**
+             * Quiz System Initialization (20 Items Shuffle)
+             */
+            startQuiz() {
+                // Fisher-Yates Shuffle 20 Questions
+                const shuffledPool = [...this.quizMasterBank];
+                for (let i = shuffledPool.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffledPool[i], shuffledPool[j]] = [shuffledPool[j], shuffledPool[i]];
+                }
+
+                // Shuffle Choices for each question
+                this.activeQuizQuestions = shuffledPool.map(qObj => {
+                    const originalCorrectText = qObj.options[qObj.answer];
+                    const shuffledOptions = [...qObj.options];
+                    for (let i = shuffledOptions.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+                    }
+                    const newCorrectIndex = shuffledOptions.indexOf(originalCorrectText);
+                    return {
+                        question: qObj.q,
+                        options: shuffledOptions,
+                        correctIndex: newCorrectIndex
+                    };
+                });
+
+                this.currentQuizIndex = 0;
+                this.userAnswers = new Array(20).fill(null);
+
+                this.renderQuizQuestion();
+                this.showScreen('quiz');
+            }
+
+            /**
+             * Render Current Quiz Question & Options
+             */
+            renderQuizQuestion() {
+                const qData = this.activeQuizQuestions[this.currentQuizIndex];
+                document.getElementById('quizCounterText').innerText = `${this.currentQuizIndex + 1}/20`;
+                
+                const percent = ((this.currentQuizIndex + 1) / 20) * 100;
+                document.getElementById('quizProgressBar').style.width = `${percent}%`;
+
+                document.getElementById('quizQuestionText').innerText = `${this.currentQuizIndex + 1}. ${qData.question}`;
+
+                const container = document.getElementById('quizOptionsContainer');
+                container.innerHTML = '';
+
+                const selectedChoice = this.userAnswers[this.currentQuizIndex];
+
+                qData.options.forEach((optText, idx) => {
+                    const btn = document.createElement('button');
+                    const isSelected = selectedChoice === idx;
+                    btn.className = `w-full p-3 sm:p-4 rounded-xl text-left font-medium text-xs sm:text-base border-2 transition-all flex items-center justify-between ${
+                        isSelected 
+                        ? 'bg-amber-100 border-amber-500 text-amber-900 shadow-md ring-2 ring-amber-400' 
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`;
+                    btn.onclick = () => this.selectQuizChoice(idx);
+                    btn.innerHTML = `
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-6 h-6 sm:w-7 sm:h-7 rounded-full ${isSelected ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'} font-bold text-xs flex items-center justify-center shrink-0">
+                                ${String.fromCharCode(65 + idx)}
+                            </span>
+                            <span class="leading-snug">${optText}</span>
+                        </div>
+                        ${isSelected ? '<i class="fa-solid fa-circle-check text-amber-500 text-base sm:text-lg shrink-0"></i>' : ''}
+                    `;
+                    container.appendChild(btn);
+                });
+
+                // Control Next/Submit Button state
+                const nextBtn = document.getElementById('quizNextBtn');
+                if (selectedChoice !== null) {
+                    nextBtn.disabled = false;
+                    nextBtn.className = "px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm transition-all shadow-md cursor-pointer";
+                    if (this.currentQuizIndex === 19) {
+                        nextBtn.innerHTML = `ส่งแบบทดสอบ <i class="fa-solid fa-paper-plane ml-1"></i>`;
+                    } else {
+                        nextBtn.innerHTML = `ข้อต่อไป <i class="fa-solid fa-arrow-right ml-1"></i>`;
+                    }
+                } else {
+                    nextBtn.disabled = true;
+                    nextBtn.className = "px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-slate-300 text-slate-500 font-bold text-xs sm:text-sm transition-all shadow cursor-not-allowed";
+                    nextBtn.innerHTML = `ข้อต่อไป <i class="fa-solid fa-arrow-right ml-1"></i>`;
+                }
+            }
+
+            /**
+             * Quiz Choice Selector
+             */
+            selectQuizChoice(index) {
+                this.userAnswers[this.currentQuizIndex] = index;
+                this.renderQuizQuestion();
+            }
+
+            /**
+             * Step to Next Quiz Question or Calculate Results
+             */
+            nextQuizQuestion() {
+                if (this.currentQuizIndex < 19) {
+                    this.currentQuizIndex++;
+                    this.renderQuizQuestion();
+                } else {
+                    this.evaluateQuizResults();
+                }
+            }
+
+            confirmExitQuiz() {
+                if (confirm('คุณต้องการออกจากแบบทดสอบใช่หรือไม่? (ความคืบหน้าจะไม่อยู่คงเดิม)')) {
+                    this.showScreen('levelMap');
+                }
+            }
+
+            /**
+             * Evaluates Final Quiz Answers & Grade
+             */
+            evaluateQuizResults() {
+                let correctCount = 0;
+                this.activeQuizQuestions.forEach((q, idx) => {
+                    if (this.userAnswers[idx] === q.correctIndex) {
+                        correctCount++;
+                    }
+                });
+
+                const wrongCount = 20 - correctCount;
+                const percent = Math.round((correctCount / 20) * 100);
+
+                let gradeTitle = "";
+                let encourageMsg = "";
+                let badgeEmoji = "🏆";
+
+                if (correctCount >= 18) {
+                    gradeTitle = "ระดับผลการเรียนรู้: ดีเยี่ยม ⭐⭐⭐";
+                    encourageMsg = "สุดยอดมาก! หนูมีความเชี่ยวชาญในการจำแนกประเภทสัตว์มีกระดูกสันหลังและไม่มีกระดูกสันหลังในระดับดีเยี่ยม!";
+                    badgeEmoji = "🥇";
+                    this.sound.playCorrect();
+                    this.fx.spawnConfetti();
+                } else if (correctCount >= 15) {
+                    gradeTitle = "ระดับผลการเรียนรู้: ดี ⭐⭐";
+                    encourageMsg = "เก่งมากเลย! หนูมีความรู้ความเข้าใจเกี่ยวกับสัตว์มีกระดูกสันหลังและไม่มีกระดูกสันหลังเป็นอย่างดี!";
+                    badgeEmoji = "🥈";
+                    this.sound.playCorrect();
+                } else if (correctCount >= 12) {
+                    gradeTitle = "ระดับผลการเรียนรู้: พอใช้ ⭐";
+                    encourageMsg = "ทำได้ดี! ลองทบทวนหมวดหมู่สัตว์ในสาระน่ารู้เพิ่มเติมอีกนิด จะช่วยให้เข้าใจแน่นยิ่งขึ้นนะ!";
+                    badgeEmoji = "🥉";
+                } else {
+                    gradeTitle = "ระดับผลการเรียนรู้: ควรทบทวนเพิ่มเติม 📖";
+                    encourageMsg = "ไม่ต้องท้อแท้นะ! แนะนำให้กลับไปอ่าน 'สาระน่ารู้' แล้วลองสำรวจด่านต่าง ๆ อีกรอบนะ!";
+                    badgeEmoji = "💡";
+                }
+
+                document.getElementById('summaryBadge').innerText = badgeEmoji;
+                document.getElementById('summaryGradeTitle').innerText = gradeTitle;
+                document.getElementById('summaryScoreText').innerText = `${correctCount}/20`;
+                document.getElementById('summaryCorrectText').innerText = `${correctCount} ข้อ`;
+                document.getElementById('summaryWrongText').innerText = `${wrongCount} ข้อ`;
+                document.getElementById('summaryPercentText').innerText = `${percent}%`;
+                document.getElementById('summaryEncourageText').innerText = encourageMsg;
+
+                this.renderReviewDetails();
+                this.showScreen('summary');
+            }
+
+            /**
+             * Renders Detailed Answers Review Dialog List
+             */
+            renderReviewDetails() {
+                const container = document.getElementById('reviewContainer');
+                container.innerHTML = '';
+
+                this.activeQuizQuestions.forEach((q, idx) => {
+                    const userSelected = this.userAnswers[idx];
+                    const isCorrect = userSelected === q.correctIndex;
+
+                    const item = document.createElement('div');
+                    item.className = `p-3 rounded-xl border-2 ${isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} space-y-1.5`;
+
+                    item.innerHTML = `
+                        <div class="flex items-start justify-between gap-2">
+                            <span class="font-extrabold text-slate-800 text-xs sm:text-sm">${idx + 1}. ${q.question}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${isCorrect ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'} whitespace-nowrap shrink-0">
+                                ${isCorrect ? '✓ ตอบถูก' : '✗ ตอบผิด'}
+                            </span>
+                        </div>
+                        <div class="text-[11px] sm:text-xs space-y-0.5">
+                            <p class="${isCorrect ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}">
+                                คำตอบของคุณ: ${userSelected !== null ? q.options[userSelected] : 'ไม่ได้ตอบ'}
+                            </p>
+                            ${!isCorrect ? `<p class="text-emerald-800 font-bold">คำตอบที่ถูกต้อง: ${q.options[q.correctIndex]}</p>` : ''}
+                        </div>
+                    `;
+
+                    container.appendChild(item);
+                });
+            }
+
+            toggleReviewAnswersModal() {
+                const modal = document.getElementById('modal-review');
+                modal.classList.toggle('hidden');
+            }
+
+            /**
+             * Interactive Animated Canvas Background System for Stages
+             */
+            initCanvasAnimation() {
+                const canvas = document.getElementById('stageAnimCanvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                
+                const updateSize = () => {
+                    const parent = canvas.parentElement;
+                    if (parent) {
+                        canvas.width = parent.clientWidth || 320;
+                        canvas.height = parent.clientHeight || 480;
+                    }
+                };
+                
+                updateSize();
+                window.addEventListener('resize', updateSize);
+
+                const particles = [];
+                for (let i = 0; i < 20; i++) {
+                    particles.push({
+                        x: Math.random() * (canvas.width || 320),
+                        y: Math.random() * (canvas.height || 480),
+                        r: Math.random() * 3 + 1,
+                        vy: Math.random() * 0.5 + 0.2,
+                        alpha: Math.random() * 0.6 + 0.2
+                    });
+                }
+
+                const animateStageBackground = () => {
+                    const width = canvas.width || 320;
+                    const height = canvas.height || 480;
+                    ctx.clearRect(0, 0, width, height);
+
+                    // Render Stage Floating Bubbles/Sparks
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                    particles.forEach(p => {
+                        p.y -= p.vy;
+                        if (p.y < -10) p.y = height + 10;
+
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+
+                    requestAnimationFrame(animateStageBackground);
+                };
+                animateStageBackground();
+            }
+        }
+
+        // Global Game Instance Initialization
+        let game;
+        window.addEventListener('DOMContentLoaded', () => {
+            game = new AnimalExplorerGame();
+        });
+    </script>
+</body>
+</html>
